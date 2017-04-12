@@ -21,7 +21,7 @@ public class Connection {
 
     protected final String TAG = "Connection";
 
-    public void endPoint(final String url, final String jsonPost, final Context context,final Boolean isPost) throws Exception{
+    public void endPoint(final String url, final String jsonPost, final Context context,final Boolean isPost,final VolleyCallback  callback) throws Exception{
         try{
             RequestQueue requestQueue = Volley.newRequestQueue(context);
             StringRequest stringRequest = new StringRequest(
@@ -29,11 +29,14 @@ public class Connection {
                     url,
                     new com.android.volley.Response.Listener<String>() {
                         @Override
-                        public void onResponse(String response) {}
+                        public void onResponse(String response) {
+                            callback.onSuccess(response);
+                        }
                     },
                     new com.android.volley.Response.ErrorListener() {
                         @Override
                         public void onErrorResponse(VolleyError error) {
+                            callback.onError(error.getMessage());
                         }
                     }) {
                 @Override
@@ -65,4 +68,10 @@ public class Connection {
         }
 
     }
+
+    public interface VolleyCallback{
+        void onSuccess(String result);
+        void onError(String result);
+    }
+
 }

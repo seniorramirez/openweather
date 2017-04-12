@@ -1,10 +1,38 @@
 package com.example.kevinramirez.openweatcher;
 
+import android.app.Dialog;
+import android.content.DialogInterface;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.InputType;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.AutoCompleteTextView;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+
+import com.example.kevinramirez.openweatcher.Adapter.CityAdapter;
+import com.example.kevinramirez.openweatcher.Model.City;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public class MainActivity extends AppCompatActivity {
-
+    public ImageView search;
+    public Button searchCityButton;
+    public AutoCompleteTextView autoCompleteTextView_city;
+    public CityAdapter cityAdapter;
+    public EditText cityField;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -15,52 +43,81 @@ public class MainActivity extends AppCompatActivity {
                     .add(R.id.activity_main, new WeatcherFragment())
                     .commit();
         }
+        search = (ImageView)findViewById(R.id.Search);
+        search.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view) {
+                showInputDialog();
+            }
+        });
+        //cityAdapter = new CityAdapter(this, android.R.layout.simple_dropdown_item_1line, getArrCity());
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.weather, menu);
-        return true;
-    }
+    private ArrayList<City> getArrCity(){
+        ArrayList<City> returnArray = new ArrayList<>();
+        String json = null;
+        try {
+            InputStream is = getAssets().open("city.json");
+            int size = is.available();
+            byte[] buffer = new byte[size];
+            is.read(buffer);
+            is.close();
+            json = new String(buffer, "UTF-8");
+            JSONObject obj = new JSONObject(json);
+            JSONArray m_jArry = obj.getJSONArray("listCity");
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-		/*int id = item.getItemId();
-		if (id == R.id.action_settings) {
-			return true;
-		}
-		return super.onOptionsItemSelected(item);*/
-        if(item.getItemId() == R.id.change_city){
-            showInputDialog();
+            for (int i = 0; i < m_jArry.length(); i++) {
+                JSONObject jo_inside = m_jArry.getJSONObject(i);
+                Log.d("Details-->", jo_inside.getString("name"));
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return null;
         }
-        return false;
-
+        return returnArray;
     }
+
 
 
     private void showInputDialog(){
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Change city");
-        final EditText input = new EditText(this);
-        input.setInputType(InputType.TYPE_CLASS_TEXT);
-        builder.setView(input);
-        builder.setPositiveButton("Go", new DialogInterface.OnClickListener() {
+        android.app.AlertDialog.Builder dialogBuilder = new android.app.AlertDialog.Builder(this);
+        dialogBuilder.setTitle("Buscar Ciudad");
+        View DialogView =  LayoutInflater.from(this).inflate(R.layout.layout_search_city, null);
+        dialogBuilder.setView(DialogView);
+        final android.app.AlertDialog alertDialog = dialogBuilder.create();
+        /*autoCompleteTextView_city = (AutoCompleteTextView) DialogView.findViewById(R.id.autocompleteCity);
+        autoCompleteTextView_city.setAdapter(cityAdapter);
+        autoCompleteTextView_city.setThreshold(3);*/
+        cityField = (EditText) DialogView.findViewById(R.id.city_field);
+        searchCityButton = (Button) DialogView.findViewById(R.id.accepterSearch);
+        searchCityButton.setOnClickListener(new View.OnClickListener(){
             @Override
-            public void onClick(DialogInterface dialog, int which) {
-                changeCity(input.getText().toString());
+            public void onClick(View v) {
+                alertDialog.dismiss();
+                changeCity(cityField.getText().toString());
             }
         });
-        builder.show();
+        alertDialog.show();
     }
 
     public void changeCity(String city){
-        WeatherFragment wf = (WeatherFragment)getSupportFragmentManager()
-                .findFragmentById(R.id.container);
-        wf.changeCity(city);
-        new CityPreference(this).setCity(city);
+        WeatcherFragment wf = (WeatcherFragment)getSupportFragmentManager()
+                .findFragmentById(R.id.activity_main);
+        wf.changeCity(capitalizarTexto(city));
+    }
+
+    public String capitalizarTexto(String text){
+        String []palabras = text.split("\\s+");
+        StringBuilder textoFormateado = new StringBuilder();
+
+        for(String palabra : palabras){
+            textoFormateado.append(palabra.substring(0,1).toUpperCase()
+                    .concat( palabra.substring(1,palabra.length())
+                            .toLowerCase()).concat(" "));
+        }
+
+        return textoFormateado.toString();
     }
 }

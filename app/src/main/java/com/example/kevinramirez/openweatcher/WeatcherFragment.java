@@ -7,10 +7,23 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
+
+import com.example.kevinramirez.openweatcher.Misc.Connection;
+import com.example.kevinramirez.openweatcher.Misc.Constants;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.text.DateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 
 public class WeatcherFragment extends Fragment {
@@ -23,14 +36,15 @@ public class WeatcherFragment extends Fragment {
 
     private OnFragmentInteractionListener mListener;
 
-    Typeface weatherFont;
+    public String cityValidate = "";
 
+    Typeface weatherFont;
     TextView cityField;
     TextView updatedField;
     TextView detailsField;
     TextView currentTemperatureField;
     TextView weatherIcon;
-
+    Connection conex;
     Handler handler;
 
     public WeatcherFragment() {}
@@ -51,6 +65,8 @@ public class WeatcherFragment extends Fragment {
             mParam1 = getArguments().getString(ARG_PARAM1);
             mParam2 = getArguments().getString(ARG_PARAM2);
         }
+        conex = new Connection();
+        weatherFont = Typeface.createFromAsset(getActivity().getAssets(), "weather.ttf");
 
     }
 
@@ -64,8 +80,14 @@ public class WeatcherFragment extends Fragment {
         currentTemperatureField = (TextView)view.findViewById(R.id.current_temperature_field);
         weatherIcon = (TextView)view.findViewById(R.id.weather_icon);
         weatherIcon.setTypeface(weatherFont);
-
+        validarCity();
         return view;
+    }
+
+    private void validarCity(){
+        if(cityValidate.equals("")){
+            changeCity("Cali");
+        }
     }
 
     public void onButtonPressed(Uri uri)  {
@@ -89,40 +111,16 @@ public class WeatcherFragment extends Fragment {
         void onFragmentInteraction(Uri uri);
     }
 
-    private void updateWeatherData(final String city){
-        new Thread(){
-            public void run(){
-                final JSONObject json = RemoteFetch.getJSON(getActivity(), city);
-                if(json == null){
-                    handler.post(new Runnable(){
-                        public void run(){
-                            Toast.makeText(getActivity(),
-                                    getActivity().getString(R.string.place_not_found),
-                                    Toast.LENGTH_LONG).show();
-                        }
-                    });
-                } else {
-                    handler.post(new Runnable(){
-                        public void run(){
-                            renderWeather(json);
-                        }
-                    });
-                }
-            }
-        }.start();
-    }
-
-    private void renderWeather(JSONObject json){
+    private void renderWeather(String jsonString){
         try {
-            cityField.setText(json.getString("name").toUpperCase(Locale.US) +
-                    ", " +
-                    json.getJSONObject("sys").getString("country"));
+            JSONObject json = new JSONObject(jsonString);
+            cityField.setText(json.getString("name").toUpperCase(Locale.US) + ", " +json.getJSONObject("sys").getString("country"));
 
             JSONObject details = json.getJSONArray("weather").getJSONObject(0);
             JSONObject main = json.getJSONObject("main");
             detailsField.setText(
                     details.getString("description").toUpperCase(Locale.US) +
-                            "\n" + "Humidity: " + main.getString("humidity") + "%" +
+                            "\n" + "Humedad: " + main.getString("humidity") + "%" +
                             "\n" + "Pressure: " + main.getString("pressure") + " hPa");
 
             currentTemperatureField.setText(
@@ -130,7 +128,7 @@ public class WeatcherFragment extends Fragment {
 
             DateFormat df = DateFormat.getDateTimeInstance();
             String updatedOn = df.format(new Date(json.getLong("dt")*1000));
-            updatedField.setText("Last update: " + updatedOn);
+            updatedField.setText("Ultima Actualización: " + updatedOn);
 
             setWeatherIcon(details.getInt("id"),
                     json.getJSONObject("sys").getLong("sunrise") * 1000,
@@ -141,7 +139,7 @@ public class WeatcherFragment extends Fragment {
         }
     }
 
-    private void  (int actualId, long sunrise, long sunset){
+    private void  setWeatherIcon(int actualId, long sunrise, long sunset){
         int id = actualId / 100;
         String icon = "";
         if(actualId == 800){
@@ -170,7 +168,29 @@ public class WeatcherFragment extends Fragment {
         weatherIcon.setText(icon);
     }
 
-    public void changeCity(String city){
-        updateWeatherData(city);
+    public void changeCity(String city) {
+        String url = Constants.urlOpenWeatcher+city+"&appid="+Constants.apiKey;
+        try {
+            conex.endPoint(url, null, getContext(), false, new Connection.VolleyCallback() {
+                @Override
+                public void onSuccess(String result) {
+                    renderWeather(result);
+                    cityValidate = result;
+                }
+                @Override
+                public void onError(String result) {
+                    android.app.AlertDialog.Builder dialogBuilder = new android.app.AlertDialog.Builder(getContext());
+                    dialogBuilder.setTitle("Buscar Ciudad");
+                    View DialogView =  LayoutInflater.from(getContext()).inflate(R.layout.layout_error_conexion, null);
+                    dialogBuilder.setView(DialogView);
+                    final android.app.AlertDialog alertDialog = dialogBuilder.create();
+                    alertDialog.show();
+                    renderWeather(cityValidate);
+                }
+            });
+
+        }catch(Exception e){
+            Log.e("Exception",e.getMessage());
+        }
     }
 }
